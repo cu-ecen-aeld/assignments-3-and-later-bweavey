@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 if [ $# -ne 2 ]
 then
@@ -21,9 +21,9 @@ matching_lines=0
 
 for file in $(find "$filesdir" -type f)
 do
-    ((file_count++))
+    file_count=$((file_count+1))
     matching_in_file=$(grep -c "$searchstr" "$file")
-    ((matching_lines+=matching_in_file))
+    matching_lines=$((matching_lines+matching_in_file))
 done
 
 echo "The number of files are $file_count and the number of matching lines are $matching_lines."
