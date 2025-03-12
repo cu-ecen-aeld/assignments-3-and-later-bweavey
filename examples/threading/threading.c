@@ -2,10 +2,11 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <pthread.h>
 
 // Optional: use these functions to add debug or error prints to your application
-#define DEBUG_LOG(msg,...)
-//#define DEBUG_LOG(msg,...) printf("threading: " msg "\n" , ##__VA_ARGS__)
+//#define DEBUG_LOG(msg,...)
+#define DEBUG_LOG(msg,...) printf("threading: " msg "\n" , ##__VA_ARGS__)
 #define ERROR_LOG(msg,...) printf("threading ERROR: " msg "\n" , ##__VA_ARGS__)
 
 void* threadfunc(void* thread_param)
@@ -16,22 +17,32 @@ void* threadfunc(void* thread_param)
 
     struct thread_data* thread_func_args = (struct thread_data *) thread_param;
 
-    usleep(thread_func_args->wait_to_obtain_ms*1000);
+    DEBUG_LOG("thread_func_args elements are %d, %d, %p", thread_func_args->wait_to_obtain_ms, thread_func_args->wait_to_release_ms, thread_func_args->mutex);
+
+    DEBUG_LOG("Thread function entered. beginning sleep of %d usec.", thread_func_args->wait_to_obtain_ms);
+    usleep(thread_func_args->wait_to_obtain_ms * 1000);
+    DEBUG_LOG("Obtain sleep completed. Locking thread.");
     int rc = pthread_mutex_lock(thread_func_args->mutex);
     if (rc != 0)
     {
+        ERROR_LOG("Failed to lock thread data.");
         return thread_func_args;
     }
+    DEBUG_LOG("Thread locked. Beginning sleep.");
     usleep(thread_func_args->wait_to_release_ms*1000);
 
+    DEBUG_LOG("Sleep completed. Unlocking thread.");
     rc = pthread_mutex_unlock(thread_func_args->mutex);
      if (rc != 0)
     {
-        return thread_func_args;
+        ERROR_LOG("Failed to unlock thread data.");
+        return thread_param;
     }
+    DEBUG_LOG("Thread unlocked. Marking thread complete.");
     
     thread_func_args->thread_complete_success = true;
-    return thread_func_args;
+    DEBUG_LOG("Thread completed, returning.");
+    return thread_param;
 }
 
 
@@ -45,20 +56,23 @@ bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex,int 
      *
      * See implementation details in threading.h file comment block
      */
-    struct thread_data *thread_param; 
-    thread_param = malloc(sizeof(struct thread_data));
-    if (thread_param == NULL)
-        return false;
+    struct thread_data* thread_param = (struct thread_data*) malloc(sizeof(struct thread_data)); 
+    if (thread_param == NULL) {
+        ERROR_LOG("Failed to allocate memory.");
+        return false;}
 
     thread_param->wait_to_obtain_ms = wait_to_obtain_ms;
     thread_param->wait_to_release_ms = wait_to_release_ms;
     thread_param->mutex = mutex;
+    thread_param->thread_complete_success = false;
 
+    DEBUG_LOG("thread_param elements initialized to %d, %d, %p", thread_param->wait_to_obtain_ms, thread_param->wait_to_release_ms, thread_param->mutex);
     int ret;
-    ret = pthread_create(thread, NULL, threadfunc, &thread_param);
+    ret = pthread_create(thread, NULL, threadfunc, thread_param);
 
     if (ret != 0) 
     {
+        ERROR_LOG("Failed to create thread.");
         free(thread_param);
         return false;
     }
