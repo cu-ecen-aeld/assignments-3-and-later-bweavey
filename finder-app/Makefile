@@ -12,5 +12,9 @@ writer: writer.o
 writer.o: writer.c
 	$(CC) -c writer.c -o writer.o
 
+all: writer.c
+	$(CC) -c writer.c -o writer.o
+
+
 clean:
 	rm -f writer writer.o
